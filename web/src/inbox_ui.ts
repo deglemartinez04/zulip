@@ -349,7 +349,7 @@ export function show(filter?: Filter): void {
                 pm_list.handle_narrow_activated(filter);
             },
             $view: $("#inbox-view"),
-            update_compose: compose_closed_ui.update_buttons_for_non_specific_views,
+            update_compose: compose_closed_ui.update_buttons,
             // We already did a check above for that.
             is_visible: () => false,
             set_visible: inbox_util.set_visible,
@@ -367,7 +367,7 @@ export function show(filter?: Filter): void {
             );
         },
         $view: $("#inbox-view"),
-        update_compose: compose_closed_ui.update_buttons_for_non_specific_views,
+        update_compose: compose_closed_ui.update_buttons,
         is_visible: () => normal_inbox_view_is_visible,
         set_visible: inbox_util.set_visible,
         complete_rerender,
@@ -1171,7 +1171,7 @@ function inbox_view_dropdown_options(
     return views_util.filters_dropdown_options(current_value, inbox_util.is_channel_view());
 }
 
-export function complete_rerender(): void {
+export function complete_rerender(coming_from_other_views = false): void {
     if (!inbox_util.is_visible()) {
         return;
     }
@@ -1222,15 +1222,17 @@ export function complete_rerender(): void {
             first_filter = filters.values().next();
         }
 
-        // If the focus is not on the inbox rows, the inbox view scrolls
-        // down when moving from other views to the inbox view. To avoid
-        // this, we scroll to top before restoring focus via revive_current_focus.
-        if (!is_list_focused()) {
-            window.scrollTo(0, 0);
-        } else if (last_scroll_offset !== undefined) {
-            // It is important to restore the scroll position as soon
-            // as the rendering is complete to avoid scroll jumping.
-            window.scrollTo(0, last_scroll_offset);
+        if (coming_from_other_views) {
+            if (last_scroll_offset !== undefined) {
+                // It is important to restore the scroll position as soon
+                // as the rendering is complete to avoid scroll jumping.
+                window.scrollTo(0, last_scroll_offset);
+            } else {
+                // If the focus is not on the inbox rows, the inbox view scrolls
+                // down when moving from other views to the inbox view. To avoid
+                // this, we scroll to top before restoring focus via revive_current_focus.
+                window.scrollTo(0, 0);
+            }
         }
 
         revive_current_focus();

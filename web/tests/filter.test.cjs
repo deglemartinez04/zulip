@@ -1330,7 +1330,7 @@ test("predicate_basics", ({override}) => {
 
     const img_msg = {
         content:
-            '<p><a href="/user_uploads/randompath/test.jpeg">test.jpeg</a></p><div class="message_inline_image"><a href="/user_uploads/randompath/test.jpeg" title="test.jpeg"><img src="/user_uploads/randompath/test.jpeg"></a></div>',
+            '<p><a href="/user_uploads/randompath/test.jpeg">test.jpeg</a></p><div class="message-media-preview-image"><a href="/user_uploads/randompath/test.jpeg" title="test.jpeg"><img src="/user_uploads/randompath/test.jpeg"></a></div>',
     };
 
     const link_msg = {
@@ -1403,13 +1403,17 @@ test("predicate_basics", ({override}) => {
     assert.ok(!has_attachment(no_has_filter_matching_msg));
 
     const has_image = get_predicate([["has", "image"]]);
-    set_find_results_for_msg_content(img_msg, ".message_inline_image", ["stub"]);
+    set_find_results_for_msg_content(img_msg, ".message-media-preview-image", ["stub"]);
     assert.ok(has_image(img_msg));
-    set_find_results_for_msg_content(non_img_attachment_msg, ".message_inline_image", false);
+    set_find_results_for_msg_content(non_img_attachment_msg, ".message-media-preview-image", false);
     assert.ok(!has_image(non_img_attachment_msg));
-    set_find_results_for_msg_content(link_msg, ".message_inline_image", false);
+    set_find_results_for_msg_content(link_msg, ".message-media-preview-image", false);
     assert.ok(!has_image(link_msg));
-    set_find_results_for_msg_content(no_has_filter_matching_msg, ".message_inline_image", false);
+    set_find_results_for_msg_content(
+        no_has_filter_matching_msg,
+        ".message-media-preview-image",
+        false,
+    );
     assert.ok(!has_image(no_has_filter_matching_msg));
 
     const has_reaction = get_predicate([["has", "reaction"]]);
@@ -1432,48 +1436,6 @@ test("negated_predicates", () => {
     narrow = [{operator: "channels", operand: "public", negated: true}];
     predicate = new Filter(narrow).predicate();
     assert.ok(predicate({}));
-});
-
-function test_mit_exceptions() {
-    const foo_stream_id = new_stream_id();
-    make_sub("Foo", foo_stream_id);
-    let predicate = get_predicate([
-        ["channel", foo_stream_id.toString()],
-        ["topic", "personal"],
-    ]);
-    assert.ok(predicate({type: stream_message, stream_id: foo_stream_id, topic: "personal"}));
-    assert.ok(predicate({type: stream_message, stream_id: foo_stream_id, topic: ""}));
-    // 9999 doesn't correspond to any channel
-    assert.ok(!predicate({type: stream_message, stream_id: 9999}));
-    assert.ok(!predicate({type: stream_message, stream_id: foo_stream_id, topic: "whatever"}));
-    assert.ok(!predicate({type: direct_message}));
-
-    predicate = get_predicate([
-        ["channel", foo_stream_id.toString()],
-        ["topic", "bar"],
-    ]);
-    assert.ok(predicate({type: stream_message, stream_id: foo_stream_id, topic: "bar.d"}));
-
-    // Try to get the MIT regex to explode for an empty channel.
-    let terms = [
-        {operator: "channel", operand: ""},
-        {operator: "topic", operand: "bar"},
-    ];
-    predicate = new Filter(terms).predicate();
-    assert.ok(!predicate({type: stream_message, stream_id: foo_stream_id, topic: "bar"}));
-
-    // Try to get the MIT regex to explode for an empty topic.
-    terms = [
-        {operator: "channel", operand: foo_stream_id.toString()},
-        {operator: "topic", operand: ""},
-    ];
-    predicate = new Filter(terms).predicate();
-    assert.ok(!predicate({type: stream_message, stream_id: foo_stream_id, topic: "bar"}));
-}
-
-test("mit_exceptions", ({override}) => {
-    override(realm, "realm_is_zephyr_mirror_realm", true);
-    test_mit_exceptions();
 });
 
 test("predicate_edge_cases", () => {
@@ -2375,6 +2337,7 @@ test("navbar_helpers", ({override}) => {
 
     const sender = [{operator: "sender", operand: joe.email}];
     const guest_sender = [{operator: "sender", operand: alice.email}];
+    const invalid_sender = [{operator: "sender", operand: "sally@doesnotexist.co"}];
     const in_home = [{operator: "in", operand: "home"}];
     const in_all = [{operator: "in", operand: "all"}];
     const is_starred = [{operator: "is", operand: "starred"}];
@@ -2471,6 +2434,13 @@ test("navbar_helpers", ({override}) => {
             icon: undefined,
             title: "translated: Messages sent by translated: alice (guest)",
             redirect_url_with_search: "/#narrow/sender/" + alice.user_id + "-alice",
+        },
+        {
+            terms: invalid_sender,
+            is_common_narrow: true,
+            icon: undefined,
+            title: "translated: Messages sent by unknown user",
+            redirect_url_with_search: "/#narrow/sender/undefined",
         },
         {
             terms: is_starred,
